@@ -1,5 +1,6 @@
 # GitIgnore for MonitorFile
-wsprrypi
+testfile.txt
+monitorfile_test
 
 ## General Rules
 .DS_Store
