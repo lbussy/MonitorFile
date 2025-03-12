@@ -6,7 +6,6 @@ MonitorFile is a lightweight **C++ header-only library** for monitoring file cha
 
 ## 🚀 Features
 
-- **Header-only** – No compilation required, just include `monitorfile.hpp` in your project.
 - **Minimal dependencies** – Uses standard C++17 `<filesystem>`.
 - **Exception-safe** – Handles missing or deleted files gracefully.
 - **Cross-platform** – Works on **Linux**, **macOS**, and **Windows** (C++17 required).
@@ -29,12 +28,10 @@ MonitorFile/
 
 ## 🔧 Installation
 
-MonitorFile is header-only, so no installation is required. Just copy `monitorfile.hpp` into your project.
-
 To test the functionality, clone the repository and compile the test program:
 
 ```bash
-git clone https://github.com/yourusername/MonitorFile.git
+git clone https://github.com/lbussy/MonitorFile.git
 cd MonitorFile/src
 make test
 ```
