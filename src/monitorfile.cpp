@@ -152,13 +152,17 @@ void MonitorFile::monitor_loop()
             continue;
         }
 
-        if (!org_time)
-        {
-            org_time = fs::last_write_time(file_name);
-            last_reported_time = org_time.value();
-        }
+        std::this_thread::sleep_for(std::chrono::milliseconds(100)); // Allow OS to update timestamp
 
         auto last_write = fs::last_write_time(file_name);
+
+        // Ensure we properly detect the first modification
+        if (!first_check_done && last_write > org_time.value())
+        {
+            first_check_done = true;
+            org_time = last_write;
+            continue;
+        }
 
         if (last_write > org_time.value())
         {
@@ -172,13 +176,6 @@ void MonitorFile::monitor_loop()
 
         if (stable_checks >= 3 && last_write != last_reported_time)
         {
-            if (!first_check_done && last_write == org_time.value())
-            {
-                first_check_done = true;
-                last_reported_time = last_write;
-                continue;
-            }
-
             last_reported_time = last_write;
             monitoring_state.store(MonitorState::FILE_CHANGED);
 
