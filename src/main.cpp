@@ -135,6 +135,7 @@ int main()
 
     // Start monitoring the file
     MonitorState state = monitor.filemon(testFileName, onFileChanged);
+    monitor.setPriority(SCHED_RR, 10);
 
     if (state == MonitorState::FILE_NOT_FOUND)
     {

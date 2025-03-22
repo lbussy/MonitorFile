@@ -1,6 +1,7 @@
 # GitIgnore for MonitorFile
 testfile.txt
-monitorfile_test
+monitorfile*
+*_test
 
 ## General Rules
 .DS_Store

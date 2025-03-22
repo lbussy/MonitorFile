@@ -72,6 +72,40 @@ MonitorState MonitorFile::filemon(const std::string &fileName, std::function<voi
 }
 
 /**
+ * @brief Sets the scheduling policy and priority for the monitoring thread.
+ *
+ * @details
+ * Uses `pthread_setschedparam()` to configure the monitoring thread’s
+ * scheduling behavior. This is useful when monitoring must respond quickly
+ * under real-time or high-priority conditions.
+ *
+ * @param schedPolicy The desired scheduling policy (e.g., `SCHED_FIFO`, `SCHED_RR`, `SCHED_OTHER`).
+ * @param priority The priority level associated with the policy.
+ *
+ * @return `true` if the scheduling parameters were successfully applied.
+ * @return `false` if the thread is not running or if `pthread_setschedparam()` fails.
+ *
+ * @note
+ * - Requires appropriate system privileges (e.g., `CAP_SYS_NICE`) to apply real-time policies.
+ * - This function should be called after the monitoring thread has started.
+ */
+bool MonitorFile::setPriority(int schedPolicy, int priority)
+{
+    // Ensure that the server thread is running.
+    if (!monitoring_thread.joinable())
+    {
+        return false;
+    }
+
+    sched_param sch_params;
+    sch_params.sched_priority = priority;
+    // Attempt to apply the scheduling policy and priority
+    int ret = pthread_setschedparam(monitoring_thread.native_handle(), schedPolicy, &sch_params);
+
+    return (ret == 0);
+}
+
+/**
  * @brief Stops the file monitoring thread.
  */
 void MonitorFile::stop()
