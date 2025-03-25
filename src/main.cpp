@@ -81,7 +81,7 @@ void workerThread(int id)
 /**
  * @brief Create or update the DTS of a file.
  *
- * Creates the file if it does not existm otherwise does a "touch."
+ * Creates the file if it does not exist, otherwise does a "touch."
  *
  * @param filename Path (optional) and filename to be used.
  */
