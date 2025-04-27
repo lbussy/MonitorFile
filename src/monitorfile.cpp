@@ -169,14 +169,20 @@ void MonitorFile::set_callback(std::function<void()> func)
 void MonitorFile::monitor_loop()
 {
     std::unique_lock<std::shared_mutex> lock(mutex);
-    fs::file_time_type last_reported_time;
-    bool first_check_done = false;
+    // Initialize last_reported_time so we never treat the very first timestamp
+    // as “new” when it's actually just our starting point.
+    fs::file_time_type last_reported_time = org_time.value();
 
-    while (!stop_monitoring)
+    // This flag tracks whether we've seen a write > org_time yet.
+    bool change_detected = false;
+    stable_checks = 0;
+
+    while (!stop_monitoring.load())
     {
-        cv.wait_for(lock, polling_interval, [this]
-                    { return stop_monitoring.load(); });
-
+        // wait_for returns true if predicate (stop) becomes true
+        cv.wait_for(lock, polling_interval, [this] {
+            return stop_monitoring.load();
+        });
         if (stop_monitoring.load())
             return;
 
@@ -186,42 +192,54 @@ void MonitorFile::monitor_loop()
             continue;
         }
 
-        std::this_thread::sleep_for(std::chrono::milliseconds(100)); // Allow OS to update timestamp
+        // release lock while we sleep to allow set_polling_interval / stop()
+        lock.unlock();
+        std::this_thread::sleep_for(std::chrono::milliseconds(100));
+        lock.lock();
 
         auto last_write = fs::last_write_time(file_name);
 
-        // Ensure we properly detect the first modification
-        if (!first_check_done && last_write > org_time.value())
+        if (!change_detected)
         {
-            first_check_done = true;
-            org_time = last_write;
+            // Haven't seen any write > org_time yet
+            if (last_write > org_time.value())
+            {
+                change_detected = true;
+                org_time = last_write;
+                stable_checks = 0;      // start counting stability from here
+            }
+            // ELSE: still no change — keep waiting
             continue;
         }
 
+        // Once we've detected a write, watch for stable intervals
         if (last_write > org_time.value())
         {
-            stable_checks = 0;
+            // file changed again before stabilizing
             org_time = last_write;
+            stable_checks = 0;
         }
         else
         {
-            stable_checks++;
-        }
-
-        if (stable_checks >= 3 && last_write != last_reported_time)
-        {
-            last_reported_time = last_write;
-            monitoring_state.store(MonitorState::FILE_CHANGED);
-
-            if (callback)
+            // file unchanged since last write
+            if (++stable_checks >= 3 && last_write != last_reported_time)
             {
-                lock.unlock();
-                callback();
-                lock.lock();
-            }
+                last_reported_time = last_write;
+                monitoring_state.store(MonitorState::FILE_CHANGED);
 
-            monitoring_state.store(MonitorState::MONITORING);
-            stable_checks = 0;
+                // invoke callback outside the lock
+                if (callback)
+                {
+                    lock.unlock();
+                    callback();
+                    lock.lock();
+                }
+
+                // reset for the next change
+                monitoring_state.store(MonitorState::MONITORING);
+                stable_checks = 0;
+                change_detected = false;
+            }
         }
     }
 }
